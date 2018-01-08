@@ -61,6 +61,7 @@
 
 #include <boost/filesystem.hpp>
 
+
 class PoseViewer
 {
  public:
@@ -72,6 +73,7 @@ class PoseViewer
     _image.create(imageSize, imageSize, CV_8UC3);
     drawing_ = false;
     showing_ = false;
+
   }
   // this we can register as a callback
   void publishFullStateAsCallback(
@@ -83,6 +85,13 @@ class PoseViewer
     // just append the path
     Eigen::Vector3d r = T_WS.r();
     Eigen::Matrix3d C = T_WS.C();
+
+    Eigen::Vector3f P = T_WS.r().cast<float>();
+    Eigen::Matrix3f R = T_WS.C().cast<float>();
+    std::cout << "[debug] cbIndex :" << cbIndex++ << std::endl;
+    std::cout << "[debug] data.P: " << P << std::endl;
+    std::cout << "[debug] data.R: " << R << std::endl;
+
     _path.push_back(cv::Point2d(r[0], r[1]));
     _heights.push_back(r[2]);
     // maintain scaling
@@ -193,6 +202,8 @@ class PoseViewer
   const double _frameScale = 0.2;  // [m]
   std::atomic_bool drawing_;
   std::atomic_bool showing_;
+
+  int cbIndex = 0;
 };
 
 // this is just a workbench. most of the stuff here will go into the Frontend class.
@@ -207,6 +218,8 @@ int main(int argc, char **argv)
     "Usage: ./" << argv[0] << " configuration-yaml-file dataset-folder [skip-first-seconds]";
     return -1;
   }
+
+  int imgIndex = 0;
 
   okvis::Duration deltaT(0.0);
   if (argc == 4) {
@@ -229,11 +242,14 @@ int main(int argc, char **argv)
                 std::placeholders::_3, std::placeholders::_4));
 
   okvis_estimator.setBlocking(true);
+  //okvis_estimator.setBlocking(false);
 
   // the folder path
   std::string path(argv[2]);
 
   const unsigned int numCameras = parameters.nCameraSystem.numCameras();
+  
+  std::cout << "numCameras :" << numCameras << std::endl;
 
   // open the IMU file
   std::string line;
@@ -316,6 +332,10 @@ int main(int argc, char **argv)
       std::string seconds = cam_iterators.at(i)->substr(
           0, cam_iterators.at(i)->size() - 13);
       t = okvis::Time(std::stoi(seconds), std::stoi(nanoseconds));
+
+
+        std::cout << "seconds :" << seconds << ", nanoseconds :" << nanoseconds << std::endl;
+
       if (start == okvis::Time(0.0)) {
         start = t;
       }
@@ -352,14 +372,17 @@ int main(int argc, char **argv)
         // add the IMU measurement for (blocking) processing
         if (t_imu - start + okvis::Duration(1.0) > deltaT) {
           okvis_estimator.addImuMeasurement(t_imu, acc, gyr);
+          std::cout << "[debug] addImuMeasurement:" << t_imu << std::endl;
         }
-
       } while (t_imu <= t);
 
       // add the image to the frontend for (blocking) processing
       if (t - start > deltaT) {
         okvis_estimator.addImage(t, i, filtered);
+        std::cout << "[debug] imgIndex :" << imgIndex++ << std::endl;
+        std::cout << "[debug] addImage:" << t << std::endl;
       }
+      std::cout << "[debug] t :" << t << ", start :" << start << std::endl;  
 
       cam_iterators[i]++;
     }

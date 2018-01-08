@@ -551,6 +551,16 @@ void ThreadedKFVio::imuConsumerLoop() {
     const okvis::Time* end;  // do not need to copy end timestamp
     {
       std::lock_guard<std::mutex> imuLock(imuMeasurements_mutex_);
+
+
+
+      LOG(INFO) << "imuConsumerLoop size:" << imuMeasurements_.size();
+      LOG(INFO) << "imuConsumerLoop data_time:" << data.timeStamp;
+    
+      if(!imuMeasurements_.empty()) {
+        LOG(INFO) << "imuConsumerLoop back_time:" << imuMeasurements_.back().timeStamp;
+      }
+
       OKVIS_ASSERT_TRUE(Exception,
                         imuMeasurements_.empty()
                         || imuMeasurements_.back().timeStamp < data.timeStamp,
